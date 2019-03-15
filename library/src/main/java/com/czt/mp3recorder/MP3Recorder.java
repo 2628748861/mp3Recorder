@@ -1,12 +1,10 @@
 package com.czt.mp3recorder;
-
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-
 import com.czt.mp3recorder.util.LameUtil;
-
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 public class MP3Recorder {
@@ -61,7 +59,7 @@ public class MP3Recorder {
 	 * 
 	 * @throws IOException  initAudioRecorder throws
 	 */
-	public void start() throws IOException {
+	public void start() {
 		if (mIsRecording) {
 			return;
 		}
@@ -145,7 +143,7 @@ public class MP3Recorder {
 	/**
 	 * Initialize audio recorder
 	 */
-	private void initAudioRecorder() throws IOException {
+	private void initAudioRecorder()  {
 		mBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLING_RATE,
 				DEFAULT_CHANNEL_CONFIG, DEFAULT_AUDIO_FORMAT.getAudioFormat());
 		
@@ -175,7 +173,11 @@ public class MP3Recorder {
 		LameUtil.init(DEFAULT_SAMPLING_RATE, DEFAULT_LAME_IN_CHANNEL, DEFAULT_SAMPLING_RATE, DEFAULT_LAME_MP3_BIT_RATE, DEFAULT_LAME_MP3_QUALITY);
 		// Create and run thread used to encode data
 		// The thread will 
-		mEncodeThread = new DataEncodeThread(mRecordFile, mBufferSize);
+		try {
+			mEncodeThread = new DataEncodeThread(mRecordFile, mBufferSize);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 		mEncodeThread.start();
 		mAudioRecord.setRecordPositionUpdateListener(mEncodeThread, mEncodeThread.getHandler());
 		mAudioRecord.setPositionNotificationPeriod(FRAME_COUNT);

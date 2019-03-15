@@ -14,9 +14,7 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.czt.mp3recorder.MP3Recorder;
-import com.tbruyelle.rxpermissions2.RxPermissions;
 
-import io.reactivex.functions.Consumer;
 
 public class MainActivity extends Activity {
 
@@ -27,15 +25,7 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
-		new RxPermissions(this)
-				.request(Manifest.permission.RECORD_AUDIO,Manifest.permission.WRITE_EXTERNAL_STORAGE)
-		.subscribe(new Consumer<Boolean>() {
-			@Override
-			public void accept(Boolean aBoolean) throws Exception {
-				Toast.makeText(MainActivity.this, "授权结果:"+aBoolean, Toast.LENGTH_SHORT).show();
 
-			}
-		});
 
 		Button startButton = (Button) findViewById(R.id.StartButton);
 		startButton.setOnClickListener(new OnClickListener() {
