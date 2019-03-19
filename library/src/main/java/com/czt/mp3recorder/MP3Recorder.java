@@ -43,6 +43,7 @@ public class MP3Recorder {
 	private short[] mPCMBuffer;
 	private DataEncodeThread mEncodeThread;
 	private boolean mIsRecording = false;
+	private boolean shouldInterrupt=false;
 //	private File mRecordFile;
 	/**
 	 * Default constructor. Setup recorder with default sampling rate 1 channel,
@@ -60,7 +61,8 @@ public class MP3Recorder {
         private static MP3Recorder instance = new MP3Recorder();
     }
 
-	/**
+
+    /**
 	 * Start recording. Create an encoding thread. Start record from this
 	 * thread.
 	 * 
@@ -71,6 +73,7 @@ public class MP3Recorder {
 			return;
 		}
 		mIsRecording = true; // 提早，防止init或startRecording被多次调用
+        shouldInterrupt=false;
 	    initAudioRecorder(recordFile);
 		mAudioRecord.startRecording();
 		new Thread() {
@@ -78,7 +81,7 @@ public class MP3Recorder {
 			public void run() {
 				//设置线程权限
 				android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-				while (mIsRecording) {
+				while (mIsRecording&&!shouldInterrupt&&mAudioRecord!=null) {
 					int readSize = mAudioRecord.read(mPCMBuffer, 0, mBufferSize);
 					if (readSize > 0) {
 						mEncodeThread.addTask(mPCMBuffer, readSize);
@@ -89,6 +92,8 @@ public class MP3Recorder {
 				mAudioRecord.stop();
 				mAudioRecord.release();
 				mAudioRecord = null;
+                mIsRecording = false;
+                shouldInterrupt=false;
 				// stop the encoding thread and try to wait
 				// until the thread finishes its job
 				mEncodeThread.sendStopMessage();
@@ -142,7 +147,8 @@ public class MP3Recorder {
 		return MAX_VOLUME;
 	}
 	public void stop(){
-		mIsRecording = false;
+        shouldInterrupt=true;
+		//mIsRecording = false;
 	}
 	public boolean isRecording() {
 		return mIsRecording;
