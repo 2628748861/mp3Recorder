@@ -43,15 +43,22 @@ public class MP3Recorder {
 	private short[] mPCMBuffer;
 	private DataEncodeThread mEncodeThread;
 	private boolean mIsRecording = false;
-	private File mRecordFile;
+//	private File mRecordFile;
 	/**
 	 * Default constructor. Setup recorder with default sampling rate 1 channel,
 	 * 16 bits pcm
-	 * @param recordFile target file
 	 */
-	public MP3Recorder(File recordFile) {
-		mRecordFile = recordFile;
+	private MP3Recorder() {
+
 	}
+    public static MP3Recorder getInstance()
+    {
+        return MP3RecorderHolder.instance;
+    }
+    private static class MP3RecorderHolder
+    {
+        private static MP3Recorder instance = new MP3Recorder();
+    }
 
 	/**
 	 * Start recording. Create an encoding thread. Start record from this
@@ -59,12 +66,12 @@ public class MP3Recorder {
 	 * 
 	 * @throws IOException  initAudioRecorder throws
 	 */
-	public void start() {
+	public void start(File recordFile) {
 		if (mIsRecording) {
 			return;
 		}
 		mIsRecording = true; // 提早，防止init或startRecording被多次调用
-	    initAudioRecorder();
+	    initAudioRecorder(recordFile);
 		mAudioRecord.startRecording();
 		new Thread() {
 			@Override
@@ -143,7 +150,7 @@ public class MP3Recorder {
 	/**
 	 * Initialize audio recorder
 	 */
-	private void initAudioRecorder()  {
+	private void initAudioRecorder(File mRecordFile)  {
 		mBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLING_RATE,
 				DEFAULT_CHANNEL_CONFIG, DEFAULT_AUDIO_FORMAT.getAudioFormat());
 		
