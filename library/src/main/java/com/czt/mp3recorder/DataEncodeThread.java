@@ -1,10 +1,12 @@
 package com.czt.mp3recorder;
 
 import android.media.AudioRecord;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 
 import com.czt.mp3recorder.util.LameUtil;
 
@@ -12,9 +14,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 public class DataEncodeThread extends HandlerThread implements AudioRecord.OnRecordPositionUpdateListener {
 	private StopHandler mHandler;
@@ -43,17 +48,27 @@ public class DataEncodeThread extends HandlerThread implements AudioRecord.OnRec
 			}
 		}
 	}
-
+	File file;
+	File directory;
+	private int sizeControl;
 	/**
 	 * Constructor
-	 * @param file file
-	 * @param bufferSize bufferSize
 	 * @throws FileNotFoundException file not found
 	 */
-	public DataEncodeThread(File file, int bufferSize) throws FileNotFoundException {
+	public DataEncodeThread(File directory,int buffer,int sizeControl) throws FileNotFoundException {
 		super("DataEncodeThread");
+		this.sizeControl=sizeControl;
+		this.directory=directory;
+		if(!directory.exists())
+        {
+            directory.mkdirs();
+        }
+        SimpleDateFormat simpleDateFormat=new SimpleDateFormat("yyyyMMddhhmmss");
+        this.file=new File(directory, simpleDateFormat.format(new Date())+".mp3");
 		this.mFileOutputStream = new FileOutputStream(file);
-		mMp3Buffer = new byte[(int) (7200 + (bufferSize * 2 * 1.25))];
+//		mMp3Buffer = new byte[(int) (7200 + (buffer * 2 * 1.25))];
+		mMp3Buffer = new byte[ buffer];
+		Log.e("TAG","buffer:"+mMp3Buffer.length);
 	}
 
 	@Override
@@ -91,13 +106,28 @@ public class DataEncodeThread extends HandlerThread implements AudioRecord.OnRec
 	 * @return  从缓冲区中读取的数据的长度
 	 * 			缓冲区中没有数据时返回0 
 	 */
-	private int processData() {	
+	private int processData() {
+
+		if(file.length()/1024/1024==sizeControl)
+		{
+			try {
+			Log.e("TAG","创建新文件");
+			this.mFileOutputStream.close();
+				SimpleDateFormat simpleDateFormat=new SimpleDateFormat("yyyyMMddhhmmss");
+			file=new File(directory, simpleDateFormat.format(new Date())+".mp3");
+			this.mFileOutputStream = new FileOutputStream(file);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
 		if (mTasks.size() > 0) {
 			Task task = mTasks.remove(0);
 			short[] buffer = task.getData();
 			int readSize = task.getReadSize();
 			int encodedSize = LameUtil.encode(buffer, buffer, readSize, mMp3Buffer);
 			if (encodedSize > 0){
+
 				try {
 					mFileOutputStream.write(mMp3Buffer, 0, encodedSize);
 				} catch (IOException e) {

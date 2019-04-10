@@ -2,10 +2,16 @@ package com.czt.mp3recorder;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Environment;
+import android.util.Log;
+
 import com.czt.mp3recorder.util.LameUtil;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.UUID;
 
 public class MP3Recorder {
 	//=======================AudioRecord Default Settings=======================
@@ -44,7 +50,6 @@ public class MP3Recorder {
 	private DataEncodeThread mEncodeThread;
 	private boolean mIsRecording = false;
 	private boolean shouldInterrupt=false;
-//	private File mRecordFile;
 	/**
 	 * Default constructor. Setup recorder with default sampling rate 1 channel,
 	 * 16 bits pcm
@@ -62,19 +67,20 @@ public class MP3Recorder {
     }
 
 
-    /**
+	/**
 	 * Start recording. Create an encoding thread. Start record from this
 	 * thread.
 	 * 
 	 * @throws IOException  initAudioRecorder throws
 	 */
-	public void start(File recordFile) {
+	public void start(File recordFile,int voiceControl,int sizeControl) {
 		if (mIsRecording) {
 			return;
 		}
 		mIsRecording = true; // 提早，防止init或startRecording被多次调用
         shouldInterrupt=false;
-	    initAudioRecorder(recordFile);
+        this.voiceControl=voiceControl;
+	    initAudioRecorder(recordFile,sizeControl);
 		mAudioRecord.startRecording();
 		new Thread() {
 			@Override
@@ -84,8 +90,12 @@ public class MP3Recorder {
 				while (mIsRecording&&!shouldInterrupt&&mAudioRecord!=null) {
 					int readSize = mAudioRecord.read(mPCMBuffer, 0, mBufferSize);
 					if (readSize > 0) {
-						mEncodeThread.addTask(mPCMBuffer, readSize);
-						calculateRealVolume(mPCMBuffer, readSize);
+						int mVolume=calculateRealVolume(mPCMBuffer, readSize);
+						if(mVolume>MP3Recorder.this.voiceControl)
+						{
+							Log.e("TAG","音量符合-添加存储任务");
+							mEncodeThread.addTask(mPCMBuffer, readSize);
+						}
 					}
 				}
 				// release and finalize audioRecord
@@ -104,7 +114,7 @@ public class MP3Recorder {
 			 * @param buffer buffer
 			 * @param readSize readSize
 			 */
-			private void calculateRealVolume(short[] buffer, int readSize) {
+			private int calculateRealVolume(short[] buffer, int readSize) {
 				double sum = 0;
 				for (int i = 0; i < readSize; i++) {  
 				    // 这里没有做运算的优化，为了更加清晰的展示代码  
@@ -114,10 +124,12 @@ public class MP3Recorder {
 					double amplitude = sum / readSize;
 					mVolume = (int) Math.sqrt(amplitude);
 				}
+				return mVolume;
 			}
 		}.start();
 	}
 	private int mVolume;
+	private int voiceControl=1000;
 
 	/**
 	 * 获取真实的音量。 [算法来自三星]
@@ -156,7 +168,7 @@ public class MP3Recorder {
 	/**
 	 * Initialize audio recorder
 	 */
-	private void initAudioRecorder(File mRecordFile)  {
+	private void initAudioRecorder(File director,int sizeControl)  {
 		mBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLING_RATE,
 				DEFAULT_CHANNEL_CONFIG, DEFAULT_AUDIO_FORMAT.getAudioFormat());
 		
@@ -187,12 +199,23 @@ public class MP3Recorder {
 		// Create and run thread used to encode data
 		// The thread will 
 		try {
-			mEncodeThread = new DataEncodeThread(mRecordFile, mBufferSize);
+//			File file1=new File(Environment.getExternalStorageDirectory(), UUID.randomUUID().toString()+".mp3");
+			mEncodeThread = new DataEncodeThread(director,1024,sizeControl);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		mEncodeThread.start();
-		mAudioRecord.setRecordPositionUpdateListener(mEncodeThread, mEncodeThread.getHandler());
+		mAudioRecord.setRecordPositionUpdateListener(new AudioRecord.OnRecordPositionUpdateListener() {
+			@Override
+			public void onMarkerReached(AudioRecord recorder) {
+				mEncodeThread.onMarkerReached(recorder);
+			}
+
+			@Override
+			public void onPeriodicNotification(AudioRecord recorder) {
+				mEncodeThread.onPeriodicNotification(recorder);
+			}
+		}, mEncodeThread.getHandler());
 		mAudioRecord.setPositionNotificationPeriod(FRAME_COUNT);
 	}
 }
