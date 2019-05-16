@@ -2,6 +2,7 @@ package com.czt.mp3recorder;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 
@@ -50,6 +51,7 @@ public class MP3Recorder {
 	private DataEncodeThread mEncodeThread;
 	private boolean mIsRecording = false;
 	private boolean shouldInterrupt=false;
+	private String TAG=MP3Recorder.class.getSimpleName();
 	/**
 	 * Default constructor. Setup recorder with default sampling rate 1 channel,
 	 * 16 bits pcm
@@ -74,6 +76,7 @@ public class MP3Recorder {
 	 * @throws IOException  initAudioRecorder throws
 	 */
 	public void start(File recordFile,int voiceControl,int sizeControl) {
+		Log.e(TAG,"录音参数-(文件存储路径:"+recordFile.getPath()+",分贝大小:"+voiceControl+",文件大小:"+sizeControl);
 		if (mIsRecording) {
 			return;
 		}
@@ -93,7 +96,7 @@ public class MP3Recorder {
 						int mVolume=calculateRealVolume(mPCMBuffer, readSize);
 						if(mVolume>MP3Recorder.this.voiceControl)
 						{
-							Log.e("TAG","音量符合-添加存储任务");
+							Log.e("TAG","音量符合-(指定音量:"+MP3Recorder.this.voiceControl+",用户音量:+"+mVolume+")");
 							mEncodeThread.addTask(mPCMBuffer, readSize);
 						}
 					}
