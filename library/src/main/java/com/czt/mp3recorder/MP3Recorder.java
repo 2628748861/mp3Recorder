@@ -96,7 +96,7 @@ public class MP3Recorder {
 						int mVolume=calculateRealVolume(mPCMBuffer, readSize);
 						if(mVolume>MP3Recorder.this.voiceControl)
 						{
-							Log.e("TAG","音量符合-(指定音量:"+MP3Recorder.this.voiceControl+",用户音量:+"+mVolume+")");
+							Log.e(TAG,"音量符合-(指定音量:"+MP3Recorder.this.voiceControl+",用户音量:"+mVolume+")");
 							mEncodeThread.addTask(mPCMBuffer, readSize);
 						}
 					}
