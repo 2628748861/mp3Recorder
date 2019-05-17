@@ -76,6 +76,7 @@ public class MP3Recorder {
 	 * @throws IOException  initAudioRecorder throws
 	 */
 	public void start(File recordFile,int voiceControl,int sizeControl) {
+		//新增tag便签
 		Log.e(TAG,"录音参数-(文件存储路径:"+recordFile.getPath()+",分贝大小:"+voiceControl+",文件大小:"+sizeControl);
 		if (mIsRecording) {
 			return;
