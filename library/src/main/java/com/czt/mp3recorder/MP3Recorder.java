@@ -4,6 +4,7 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 
 import com.czt.mp3recorder.util.LameUtil;
@@ -27,7 +28,7 @@ public class MP3Recorder {
 	 * private static final int DEFAULT_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
 	 */
 	private static final PCMFormat DEFAULT_AUDIO_FORMAT = PCMFormat.PCM_16BIT;
-	
+
 	//======================Lame Default Settings=====================
 	private static final int DEFAULT_LAME_MP3_QUALITY = 7;
 	/**
@@ -35,12 +36,12 @@ public class MP3Recorder {
 	 */
 	private static final int DEFAULT_LAME_IN_CHANNEL = 1;
 	/**
-	 *  Encoded bit rate. MP3 file will be encoded with bit rate 32kbps 
-	 */ 
+	 *  Encoded bit rate. MP3 file will be encoded with bit rate 32kbps
+	 */
 	private static final int DEFAULT_LAME_MP3_BIT_RATE = 32;
-	
+
 	//==================================================================
-	
+
 	/**
 	 * 自定义 每160帧作为一个周期，通知一下需要进行编码
 	 */
@@ -72,7 +73,7 @@ public class MP3Recorder {
 	/**
 	 * Start recording. Create an encoding thread. Start record from this
 	 * thread.
-	 * 
+	 *
 	 * @throws IOException  initAudioRecorder throws
 	 */
 	public void start(File recordFile,int voiceControl,int sizeControl) {
@@ -97,8 +98,23 @@ public class MP3Recorder {
 						int mVolume=calculateRealVolume(mPCMBuffer, readSize);
 						if(mVolume>MP3Recorder.this.voiceControl)
 						{
+							delyHandler.removeCallbacks(delyRecordTask);
+							isDely=true;
+							isStoped=false;
 							Log.e(TAG,"音量符合-(指定音量:"+MP3Recorder.this.voiceControl+",用户音量:"+mVolume+")");
 							mEncodeThread.addTask(mPCMBuffer, readSize);
+						}
+						else{
+							if(isDely) {
+								Log.e(TAG,"音量不符合-正在延迟5s倒计时录制");
+								mEncodeThread.addTask(mPCMBuffer, readSize);
+							}
+							if(!isStoped)
+							{
+								isStoped=true;
+								delyHandler.postDelayed(delyRecordTask, 5 * 1000);
+							}
+
 						}
 					}
 				}
@@ -114,24 +130,37 @@ public class MP3Recorder {
 			}
 			/**
 			 * 此计算方法来自samsung开发范例
-			 * 
+			 *
 			 * @param buffer buffer
 			 * @param readSize readSize
 			 */
 			private int calculateRealVolume(short[] buffer, int readSize) {
 				double sum = 0;
-				for (int i = 0; i < readSize; i++) {  
-				    // 这里没有做运算的优化，为了更加清晰的展示代码  
-				    sum += buffer[i] * buffer[i]; 
-				} 
+				for (int i = 0; i < readSize; i++) {
+				    // 这里没有做运算的优化，为了更加清晰的展示代码
+				    sum += buffer[i] * buffer[i];
+				}
 				if (readSize > 0) {
 					double amplitude = sum / readSize;
-					mVolume = (int) Math.sqrt(amplitude);
+					mVolume = (int) (10 * Math.log10(amplitude));
 				}
 				return mVolume;
 			}
 		}.start();
 	}
+
+	private boolean isDely=true;//是否有延迟5s录制
+	private boolean isStoped=false;
+
+	private Handler delyHandler=new Handler();
+	private Runnable delyRecordTask=new Runnable() {
+		@Override
+		public void run() {
+			isDely=false;
+			Log.e(TAG,"音量不符合-延迟倒计时结束");
+		}
+	};
+
 	private int mVolume;
 	private int voiceControl=1000;
 
@@ -175,10 +204,10 @@ public class MP3Recorder {
 	private void initAudioRecorder(File director,int sizeControl)  {
 		mBufferSize = AudioRecord.getMinBufferSize(DEFAULT_SAMPLING_RATE,
 				DEFAULT_CHANNEL_CONFIG, DEFAULT_AUDIO_FORMAT.getAudioFormat());
-		
+
 		int bytesPerFrame = DEFAULT_AUDIO_FORMAT.getBytesPerFrame();
-		/* Get number of samples. Calculate the buffer size 
-		 * (round up to the factor of given frame size) 
+		/* Get number of samples. Calculate the buffer size
+		 * (round up to the factor of given frame size)
 		 * 使能被整除，方便下面的周期性通知
 		 * */
 		int frameSize = mBufferSize / bytesPerFrame;
@@ -186,22 +215,22 @@ public class MP3Recorder {
 			frameSize += (FRAME_COUNT - frameSize % FRAME_COUNT);
 			mBufferSize = frameSize * bytesPerFrame;
 		}
-		
+
 		/* Setup audio recorder */
 		mAudioRecord = new AudioRecord(DEFAULT_AUDIO_SOURCE,
 				DEFAULT_SAMPLING_RATE, DEFAULT_CHANNEL_CONFIG, DEFAULT_AUDIO_FORMAT.getAudioFormat(),
 				mBufferSize);
-		
+
 		mPCMBuffer = new short[mBufferSize];
 		/*
 		 * Initialize lame buffer
-		 * mp3 sampling rate is the same as the recorded pcm sampling rate 
+		 * mp3 sampling rate is the same as the recorded pcm sampling rate
 		 * The bit rate is 32kbps
-		 * 
+		 *
 		 */
 		LameUtil.init(DEFAULT_SAMPLING_RATE, DEFAULT_LAME_IN_CHANNEL, DEFAULT_SAMPLING_RATE, DEFAULT_LAME_MP3_BIT_RATE, DEFAULT_LAME_MP3_QUALITY);
 		// Create and run thread used to encode data
-		// The thread will 
+		// The thread will
 		try {
 //			File file1=new File(Environment.getExternalStorageDirectory(), UUID.randomUUID().toString()+".mp3");
 			mEncodeThread = new DataEncodeThread(director,1024,sizeControl);

@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
 		startButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				MP3Recorder.getInstance().start(new File(Environment.getExternalStorageDirectory(),"/temp"),600,1);
+				MP3Recorder.getInstance().start(new File(Environment.getExternalStorageDirectory(),"/temp"),70,1);
 
 			}
 		});
